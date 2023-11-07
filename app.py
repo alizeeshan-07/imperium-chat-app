@@ -4,7 +4,6 @@ from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.vectorstores import Chroma
 from langchain import OpenAI
 from langchain.chains import RetrievalQAWithSourcesChain
-from langchain.chains import RetrievalQA
 import fitz  # PyMuPDF
 import io
 import os
@@ -78,13 +77,12 @@ retriever = vStore.as_retriever()
 retriever.search_kwargs = {'k': 2}
 llm = OpenAI(model_name=model_name, openai_api_key=openai_api_key, streaming=True)
 model = RetrievalQAWithSourcesChain.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever)
-retriever = vStore.as_retriever(search_type="similarity", search_kwargs={"k":1})
 
 # Create the chain to answer questions
-rqa = RetrievalQA.from_chain_type(llm=OpenAI(model_name=model_name, openai_api_key=openai_api_key, streaming=True),
-                                  chain_type="stuff",
-                                  retriever=retriever,
-                                  return_source_documents=True)
+rqa = RetrievalQAWithSourcesChain.from_chain_type(llm=OpenAI(model_name=model_name, openai_api_key=openai_api_key, streaming=True),
+                                                  chain_type="stuff",
+                                                  retriever=retriever)
+st.header("Ask your data")
 user_q = st.text_area("Enter your questions here")
 
 if st.button("Get Response"):
@@ -96,8 +94,10 @@ if st.button("Get Response"):
             
             # Display the source document/part where the answer was derived from
             st.subheader('Source Document/Part:')
-            st.write(result['source_documents'])
-
+            source_text = result['source_documents'][0]['content'].replace('\n', ' ')
+            source_text = reconstruct_paragraphs(source_text)
+            with st.expander("Show source text"):
+                st.text_area("", source_text, height=300, disabled=True)
 
     except Exception as e:
         st.error(f"An error occurred: {e}")
